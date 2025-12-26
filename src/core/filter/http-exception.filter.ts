@@ -44,10 +44,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
     } else {
       message = 'Internal server error';
     }
-
     // log error message
     this.logger.error(
-      `[${request.method}] ${request.url} - Error: ${JSON.stringify(message)}`,
+      `[${request.method}] ${request.url} - Error: ${JSON.stringify(exception)}`,
     );
 
     const errorName =
