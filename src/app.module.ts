@@ -8,6 +8,7 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
 import { GlobalInterceptor } from './core/interceptor/global.interceptor';
 import { DatabaseModule } from './provider/databases/database.module';
 import { UserModule } from './modules/user/user.module';
+import { OtpModule } from './modules/otp/otp.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { UserModule } from './modules/user/user.module';
       isGlobal: true,
       envFilePath: `.env.${process.env.NODE_ENV || 'development'}`,
     }),
+    OtpModule,
   ],
   controllers: [AppController],
   providers: [

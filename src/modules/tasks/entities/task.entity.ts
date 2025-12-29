@@ -23,7 +23,11 @@ export class Task {
   @Column({ type: 'enum', enum: TaskStatus, default: TaskStatus.OPEN })
   status: TaskStatus;
 
-  @ManyToOne(() => User, (user) => user.assignee, { eager: false })
+  @ManyToOne(() => User, (user) => user.createdTasks, { eager: false })
+  @JoinColumn({ name: 'creator_id' })
+  creator: User;
+
+  @ManyToOne(() => User, (user) => user.assignedTasks, { eager: false })
   @JoinColumn({ name: 'assignee_id' })
   assignee: User;
   @ManyToMany(() => User, (user) => user.participant, { eager: false })

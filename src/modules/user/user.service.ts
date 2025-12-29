@@ -6,7 +6,7 @@ import { UserRepository } from './repositories/user.repository';
 @Injectable()
 export class UserService {
   constructor(private readonly userRepositories: UserRepository) {}
-  async create(createUserDto: CreateUserDto) {
+  async createUser(createUserDto: CreateUserDto) {
     const exsitUser = await this.userRepositories.findUserByEmail(
       createUserDto.email,
     );
