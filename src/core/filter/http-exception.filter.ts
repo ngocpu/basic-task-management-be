@@ -44,10 +44,12 @@ export class HttpExceptionFilter implements ExceptionFilter {
     } else {
       message = 'Internal server error';
     }
-    // log error message
-    this.logger.error(
-      `[${request.method}] ${request.url} - Error: ${JSON.stringify(exception)}`,
-    );
+    // log error message; Error objects stringify to {} so print message/stack when available
+    const errorLog =
+      exception instanceof Error
+        ? `${exception.message}\n${exception.stack}`
+        : JSON.stringify(exception);
+    this.logger.error(`[${request.method}] ${request.url} - Error: ${errorLog}`);
 
     const errorName =
       typeof exception === 'object' &&
