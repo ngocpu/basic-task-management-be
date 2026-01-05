@@ -1,26 +1,71 @@
-import { Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
 import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { UserRepository } from './repositories/user.repository';
+import { EntityManager } from 'typeorm';
+import { User } from './entities/user.entity';
 
 @Injectable()
 export class UserService {
-  create(createUserDto: CreateUserDto) {
-    return 'This action adds a new user';
+  constructor(private readonly userRepositories: UserRepository) {}
+  async createUser(createUserDto: CreateUserDto, manager?: EntityManager) {
+    // If a transaction manager is provided, use it to perform transactional operations.
+    if (manager) {
+      const exist = await manager.findOne(User, {
+        where: { email: createUserDto.email },
+      });
+      if (exist) {
+        throw new ConflictException('User with this email already exists');
+      }
+      const salt = await bcrypt.genSalt();
+      const hashedPassword = await bcrypt.hash(createUserDto.password, salt);
+      const newUser = manager.create(User, {
+        ...createUserDto,
+        password: hashedPassword,
+      });
+      return await manager.save(newUser);
+    }
+
+    const existUser = await this.userRepositories.findUserByEmail(
+      createUserDto.email,
+    );
+    if (existUser) {
+      throw new ConflictException('User with this email already exists');
+    }
+    const salt = await bcrypt.genSalt();
+    const hashedPassword = await bcrypt.hash(createUserDto.password, salt);
+    const newUser = await this.userRepositories.createUser({
+      ...createUserDto,
+      password: hashedPassword,
+    });
+    return await this.userRepositories.save(newUser);
   }
 
-  findAll() {
-    return `This action returns all user`;
+  async findAllUsers() {
+    return await this.userRepositories.findAllUsers();
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} user`;
+  async findUserById(id: number) {
+    return await this.userRepositories.findUserById(id);
+  }
+  async findUserByEmail(email: string) {
+    return await this.userRepositories.findUserByEmail(email);
   }
 
-  update(id: number, updateUserDto: UpdateUserDto) {
-    return `This action updates a #${id} user`;
+  async deleteUser(id: number) {
+    await this.userRepositories.deleteUserById(id);
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} user`;
+  async markVerified(email: string) {
+    const user = await this.userRepositories.findUserByEmail(email);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    user.isVerified = true;
+    return await this.userRepositories.save(user);
   }
 }
