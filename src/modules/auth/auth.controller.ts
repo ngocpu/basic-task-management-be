@@ -1,6 +1,6 @@
 import { Body, Controller, Post, Res } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { RegisterUserDTO } from './dto/create-auth.dto';
+import { LoginUserDTO, RegisterUserDTO } from './dto/create-auth.dto';
 import type { Response } from 'express';
 
 @Controller('auth')
@@ -18,5 +18,16 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     return await this.authService.activateUser(body.email, body.otpCode, res);
+  }
+  @Post('login')
+  async loginUser(
+    @Body() loginUserDTO: LoginUserDTO,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    return await this.authService.loginUser(loginUserDTO, res);
+  }
+  @Post('logout')
+  logoutUser(@Res({ passthrough: true }) res: Response) {
+    return this.authService.logoutUser(res);
   }
 }

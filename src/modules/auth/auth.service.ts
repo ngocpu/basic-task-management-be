@@ -3,6 +3,7 @@ import {
   ConflictException,
   Injectable,
   InternalServerErrorException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -12,7 +13,8 @@ import { OtpType } from 'src/types/enum';
 import { DataSource } from 'typeorm';
 import { OtpService } from '../otp/otp.service';
 import { UserService } from '../user/user.service';
-import { RegisterUserDTO } from './dto/create-auth.dto';
+import { LoginUserDTO, RegisterUserDTO } from './dto/create-auth.dto';
+import { TokenService } from './token.service';
 
 @Injectable()
 export class AuthService {
@@ -22,15 +24,17 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly otpService: OtpService,
     private readonly mailService: MailService,
+    private readonly tokenService: TokenService,
   ) {}
-  async validateUser(email: string, password: string): Promise<any> {
+  async validateUser(
+    email: string,
+    password: string,
+  ): Promise<{ email: string; id: number } | null> {
     const user = await this.userService.findUserByEmail(email);
     if (user) {
       const isMatchPassword = await bcrypt.compare(password, user.password);
       if (isMatchPassword) {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { password, ...result } = user;
-        return result;
+        return { email: user.email, id: user.id };
       }
     }
     return null;
@@ -95,62 +99,34 @@ export class AuthService {
     const user = await this.userService.markVerified(email);
 
     // create JWT tokens
-    const payload = { username: user.email, sub: user.id };
-
-    // expirations (fallbacks)
-    const accessExpireMinutes = Number.parseInt(
-      process.env.ACCESS_TOKEN_EXPIRE_MINUTES || '15',
-      10,
-    );
-    const refreshExpireDays = Number.parseInt(
-      process.env.REFRESH_TOKEN_EXPIRE_DAYS || '7',
-      10,
-    );
-
-    const accessToken = this.jwtService.sign(payload, {
-      expiresIn: `${accessExpireMinutes}m`,
-    });
-    const refreshToken = this.jwtService.sign(payload, {
-      expiresIn: `${refreshExpireDays}d`,
-    });
-
-    const isProd = process.env.NODE_ENV === 'production';
-    response.cookie('access_token', accessToken, {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: 'strict',
-      path: '/',
-      maxAge: Number(process.env.ACCESS_TOKEN_EXPIRE_MINUTES || 15) * 60 * 1000,
-    });
-
-    response.cookie('refresh_token', refreshToken, {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: 'strict',
-      path: '/',
-      maxAge:
-        Number(process.env.REFRESH_TOKEN_EXPIRE_DAYS || 7) *
-        24 *
-        60 *
-        60 *
-        1000,
-    });
+    this.tokenService.setTokenCookie(email, user.id, response);
 
     return {
       message: `User ${email} activated successfully.`,
-      user: { email: user.email, id: user.id },
+      user_data: { email: user.email, id: user.id },
+    };
+  }
+  // login service
+  async loginUser(loginUserDto: LoginUserDTO, response: Response) {
+    const validUser = await this.validateUser(
+      loginUserDto.email,
+      loginUserDto.password,
+    );
+    if (!validUser) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
+    this.tokenService.setTokenCookie(validUser.email, validUser.id, response);
+    return {
+      message: 'User logged in successfully',
+      user_data: validUser,
     };
   }
 
-  // async loginUser(user: LoginUserDTO & { id: number }) {
-  //   const validUser = await this.validateUser(user.email, user.password);
-  //   if (!validUser) {
-  //     throw new ConflictException('Invalid email or password');
-  //   }
-  //   const payload = { username: user.email, sub: user.id };
-  //   return {
-  //     access_token: this.jwtService.sign(payload),
-  //     ...validUser,
-  //   };
-  // }
+  logoutUser(response: Response) {
+    response.clearCookie('access_token', { path: '/' });
+    response.clearCookie('refresh_token', { path: '/' });
+    return {
+      message: 'User logged out successfully',
+    };
+  }
 }

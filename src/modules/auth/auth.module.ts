@@ -6,6 +6,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { OtpModule } from '../otp/otp.module';
 import { MailModule } from 'src/provider/mails/mail.module';
+import { TokenService } from './token.service';
 
 @Module({
   imports: [
@@ -28,6 +29,6 @@ import { MailModule } from 'src/provider/mails/mail.module';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService],
+  providers: [AuthService, TokenService],
 })
 export class AuthModule {}
